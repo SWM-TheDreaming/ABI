@@ -8,7 +8,7 @@ pragma solidity ^0.8.19;
 * @author lopahn2 / hwany9181@gmail.com
 * @notice Agent for deposit distributor
 */
-contract testContract {
+contract recovery3Contract {
 
     ///@notice When Contract be ended, ReadOnly
     bool isContractRun;
