@@ -1,5 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import moment from 'moment-timezone'
+moment.tz.setDefault('Asia/Seoul');
+
 
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import { Transaction } from '@ethereumjs/tx';
@@ -8,14 +11,13 @@ import sqlCon from '../db/sqlCon.js'
 
 import Contract from '../controllers/compile.js';
 import Client from '../controllers/client.js';
-
+import { makeGroupHashedID } from '../lib/hashing.js';
 
 
 dotenv.config({ path: '../.env' });
 
-// const singleWeb3 = new Web3(new Web3.providers.HttpProvider(process.env.BLOCK_CHAIN_HTTP_PROVIDER));
-
 const client = new Client(process.env.BLOCK_CHAIN_HTTP_PROVIDER);
+
 const conn = sqlCon();
 const router = express.Router();
 
@@ -26,14 +28,12 @@ router.post('/write', async function(req, res, next) {
   try {
     const contractInfo = req.body;
     const contractTitle = contractInfo.title + "Contract";
-
+    const hashedGroupInfo = await makeGroupHashedID(contractInfo.group_id, contractInfo.title);
     const contractWriteResult = {};
 
-
+    console.log('transaction...compiling contract .....');
     const [abi, bytecode] = Contract.compile(contractTitle);
 
-    console.log('transaction...compiling contract .....');
-    
     const MyContract = new client.web3.eth.Contract(abi);
 
     const deploy = MyContract.deploy({
@@ -61,13 +61,19 @@ router.post('/write', async function(req, res, next) {
       
       client.web3.eth.sendSignedTransaction(raw)
         .once('transactionHash', (hash) => {
-          console.info('transactionHash', process.env.BLOCK_CHAIN_HTTP_PROVIDER +" / " + hash);
+          console.info('transactionHash', hash);
         })
-        .once('receipt', (receipt) => {
+        .once('receipt', async (receipt) => {
+          const nowTime = moment().format("YYYY-M-D H:m:s");
+
           contractWriteResult.blockHash = receipt.blockHash;
           contractWriteResult.contractAddress = receipt.contractAddress;
           contractWriteResult.transactionHash = receipt.transactionHash;
           contractWriteResult.status = receipt.status;
+          
+          await conn.execute('INSERT INTO contracts VALUES (?,?,?,?,?,?,?)', [null, hashedGroupInfo.crypt, receipt.contractAddress, contractTitle,hashedGroupInfo.salt ,nowTime, nowTime]);
+          await conn.execute('INSERT INTO contract_log VALUES (?,?,?,?)', [null, hashedGroupInfo.crypt, receipt.transactionHash, nowTime]);
+
           console.info('receipt', receipt);
 
           return res.status(201).json(
@@ -83,16 +89,15 @@ router.post('/write', async function(req, res, next) {
               err
             }
           );
-        });
-
-        
+        });    
     });
-
-
-    
   } catch(e) {
-    
-    console.log(e);
+    return res.status(401).json(
+      {
+        message : "예상치 못한 에러가 발생했습니다.",
+        error : e
+      }
+    );
   }
 
   
