@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import path, { dirname } from "path";
 import { fileURLToPath } from 'url';
 
-import templateContract from '../contractModules/contractWriter.js';
+import templateContract from './contractWriter.js';
 
 const __fileName = fileURLToPath(import.meta.url);
 const __dirname = dirname(__fileName);
