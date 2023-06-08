@@ -1,5 +1,4 @@
-const templateContract = (contractTitle) => {
-  return `// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
   pragma solidity ^0.8.19;
   
   
@@ -9,7 +8,7 @@ const templateContract = (contractTitle) => {
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
-  contract ${contractTitle} {
+  contract adminContract {
   
       ///@notice When Contract be ended, ReadOnly
       bool isContractRun;
@@ -314,7 +313,4 @@ const templateContract = (contractTitle) => {
       
           
   }
-  `
-}
-
-export default templateContract;
+  
