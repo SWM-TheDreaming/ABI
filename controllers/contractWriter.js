@@ -175,6 +175,15 @@ const templateContract = (contractTitle) => {
       function callContractDepositDetail() public view returns(Deposit[] memory) {
           return(studyGroupDeposits);
       }
+
+      /**
+      * @notice Calling the study group's Contract details
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function callContractDetail() public returns(GroupContract memory) {
+          return(groupContract);
+      }
+    
   
       /**
       * @notice Calling the Dreaming's deposit accounting details

@@ -136,8 +136,17 @@ router.post('/write', async function(req, res, next) {
  */
 router.post('/:groupId/:title', async (req, res, next) => {
   try {
+
     const params = req.params;
     const body = req.body;
+
+    if (regExp.test(params.title)) {
+      return res.status(401).json(
+        {
+          message : "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
+        }
+      );
+    }
 
     const hashedGroupInfo = await makeGroupHashedID(params.groupId, params.title);
 
@@ -169,18 +178,71 @@ router.post('/:groupId/:title', async (req, res, next) => {
         gas: 4000000
       })
       .on("receipt", (receipt) => {
-        console.info(receipt);
-        console.log("fuck");
-        deployedContract.methods.groupContract().call({from : process.env.SEND_ACCOUNT}).then((res) => console.log(res));
+        return res.status(201).json(
+          {
+            message : "컨트랙트 작성에 성공했습니다.",
+            receipt
+          }
+        );
       });
 
+    
+
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json(
+      {
+        message : "존재하지 않는 그룹의 스마트 컨트랙트 입니다. ID는 Long type 식별자를 썼는지, Title에 오타가 없는지 확인하세요.",
+        error : error.message
+      }
+    );
+  }
+});
+
+/**
+ * @Notice callContractDetail Call Router
+ * 
+ * @Param groupId : Long group_id
+ * @Param title : String title / Not included !,@,#, ... 
+ * 
+ */
+router.get('/callContract/:groupId/:title', async (req, res, next) => {
+  try {
+    
+    const params = req.params;
+
+    if (regExp.test(params.title)) {
+      return res.status(401).json(
+        {
+          message : "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
+        }
+      );
+    }
+
+    const hashedGroupInfo = await makeGroupHashedID(params.groupId, params.title);
+    
+    const [contractInfo, ] = await conn.execute('select * from contracts where hashed_group_id = ?',[hashedGroupInfo.crypt]);
+    const CA = contractInfo[0].contract_address;
+    const encodedContract = require(`../build/${params.title}Contract.json`);
+    
+    const deployedContract = new client.web3.eth.Contract(encodedContract.abi, CA);
+    deployedContract.methods.callContractDetail().call().then(res => console.info(res)).catch(err=>console.log(err));
+
+    // deployedContract.methods
+    //   .callContractDetail()
+    //   .call({
+    //     from : process.env.SEND_ACCOUNT,
+    //     gas : 4000000
+    //   })
+    //   .then(result =>console.info(result))
+    //   .catch(err => console.log(err));
 
     
     
 
     return res.status(201).json(
       {
-        message : "컨트랙트 생성에 성공했습니다.",
+        message : "컨트랙트 읽기에 성공했습니다.",
         hashedGroupInfo
       }
     );
@@ -195,5 +257,6 @@ router.post('/:groupId/:title', async (req, res, next) => {
     );
   }
 });
+
 
 export default router;
