@@ -43,6 +43,28 @@
           end
       }
   
+      /**
+       * @notice Set all contract behavior log recorded in this struct object
+       * 
+       * @string:who -> dreaming / userId
+       * @uint:timestamp -> when transaction occurred
+       * @string:where -> group_id
+       * @uint:amount -> how mouch amount of money is transacted
+       * @string:from -> from
+       * @string:to -> to
+       * @string:why -> transaction reason 
+       */
+      struct DreamingLog {
+        string who;
+        uint timestamp;
+        string where;
+        uint amount;
+        string from;
+        string to;
+        string why;
+      }
+
+      DreamingLog[] dreamingLogs;
   
       /**
       * @notice The Dreaming Finance Info 
@@ -126,7 +148,7 @@
       ) isRun onlyOwner public returns(string memory) {
       
           groupContract = GroupContract(
-              leader_id, group_id, group_capacity, group_deposit_per_person, (block.timestamp + group_period * 1 days), GroupStatus(0)
+              leader_id, group_id, group_capacity, group_deposit_per_person, (block.timestamp + (group_period * 1 days)), GroupStatus(0)
           );
           
           return(response_post_success_msg);
@@ -137,15 +159,16 @@
       /**
       * @notice Check if the points the client wants to pay are equal to the preset deposit
       * @param client_payment : Points paid by the client
+      * @dev This Function is only callable in the contract
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
       function callCheckGroupDeposit(
           uint client_payment
-      ) public view returns(string memory) {
+      ) private view returns(bool) {
           if (groupContract.group_deposit_per_person == client_payment) {
-              return(response_success_msg);
+              return(true);
           } else {
-              return(response_fail_msg);
+              return(false);
           }
       }
   
@@ -179,7 +202,7 @@
       * @notice Calling the study group's Contract details
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function callContractDetail() public returns(GroupContract memory) {
+      function callContractDetail() public view returns(GroupContract memory) {
           return(groupContract);
       }
     
@@ -191,6 +214,14 @@
       function callDreamingDepositDetail() onlyOwner public view returns(DreamingDeposit memory) {
           return dreamingDeposit;
       }
+
+      /**
+      * @notice Calling the dreaming log array
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function callDreamingLog() onlyOwner public view returns(DreamingLog[] memory) {
+          return dreamingLogs;
+      }
   
   
       /**
@@ -201,15 +232,18 @@
       function patchClientPaymentDeposit(
           string memory deposit_payer_id,
           string memory warrenty_pledge,
+          string memory group_id,
           uint deposit_amount
       ) isRun onlyOwner public returns(GroupStatus, string memory) {
+          require(callCheckGroupDeposit(deposit_amount), "deposit amount is not same in the contarct");
+
           studyGroupDeposits.push(Deposit(
               deposit_payer_id,
               warrenty_pledge,
               deposit_amount,
               block.timestamp
           ));
-  
+          dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, "dreaming_app", deposit_amount, "dreaming_app", group_id, "deposit payment for enrollment"));
           if (studyGroupDeposits.length == groupContract.group_capacity) {
               groupContract.groupStatus = GroupStatus(1);
           }
@@ -224,11 +258,13 @@
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
       function patchDistributeKickedClientDeposit(
-          string memory deposit_payer_id
+          string memory deposit_payer_id,
+          string memory group_id
       ) isRun onlyOwner public returns(string memory) {
           uint returnableDepositAmount = 0;
           for (uint i = 0; i < studyGroupDeposits.length; i++) {
               if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) == keccak256(bytes(deposit_payer_id))) {
+                  dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, group_id, studyGroupDeposits[i].deposit_amount, group_id, "contract memory", "The deposit was taken because the user was kicked out."));
                   returnableDepositAmount += studyGroupDeposits[i].deposit_amount;
                   studyGroupDeposits[i].deposit_amount = 0;
                   break;
@@ -238,11 +274,12 @@
           /// @dev split equally among the rest and Dreaming. Because Solidity can not handle float type
           returnableDepositAmount /= studyGroupDeposits.length;
           dreamingDeposit.deposit_balance += returnableDepositAmount;
-  
+          dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "contract memory", returnableDepositAmount, "contract memory", "dreaming finance", "The deposit is distributed because user was kicked."));
           dreamingDeposit.dreamingFinance.push(DreamingFinance(groupContract.group_id, deposit_payer_id, "Kick of player", returnableDepositAmount, block.timestamp));
   
           for (uint i = 0; i < studyGroupDeposits.length; i++) {
               if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) != keccak256(bytes(deposit_payer_id))) {
+                  dreamingLogs.push(DreamingLog(studyGroupDeposits[i].deposit_payer_id, block.timestamp, "contract memory", returnableDepositAmount, "contract memory", group_id, "The deposit is distributed because user was kicked."));
                   studyGroupDeposits[i].deposit_amount += returnableDepositAmount;
               }
           }
@@ -256,24 +293,22 @@
       *         
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function patchAttributeAllDepositsToDreaming() isRun onlyOwner private returns(string memory) {
+      function patchAttributeAllDepositsToDreaming(
+        string memory group_id
+      ) isRun onlyOwner private returns(string memory) {
           uint returnableDepositAmount = 0;
   
           for (uint i = 0; i < studyGroupDeposits.length; i++) {
+              dreamingLogs.push(DreamingLog(studyGroupDeposits[i].deposit_payer_id, block.timestamp, group_id, studyGroupDeposits[i].deposit_amount, group_id, "contract memory", "Forfeiture of deposit due to breach of contract"));
               returnableDepositAmount += studyGroupDeposits[i].deposit_amount;
               studyGroupDeposits[i].deposit_amount = 0;
           }
   
           dreamingDeposit.deposit_balance += returnableDepositAmount;
           dreamingDeposit.dreamingFinance.push(DreamingFinance(groupContract.group_id, "All Payed", "Boom Study Group ( breach of contract )", returnableDepositAmount, block.timestamp));
-  
+          dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "contract memory", returnableDepositAmount, "contract memory", "dreaming finance", "dreaming earn money because Forfeiture of deposit due to breach of contract"));
           return(response_post_success_msg);
       }
-  
-      // 회사측 수익 구조 설계 후 다시 작성하기
-      // 안할 것 같음
-      function patchDistributeMidtermClientDeposit() isRun onlyOwner private returns(string memory) {}
-  
   
       /**
       * @notice Status change request after checking group termination conditions
@@ -304,7 +339,7 @@
           uint revenueOfDreamingInThisContract = dreamingDeposit.deposit_balance;
           
           dreamingDeposit.deposit_balance = 0;
-  
+          dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "dreaming finance", revenueOfDreamingInThisContract, "dreaming finance", "dreaming app", "settles the profit that the service can earn."));
           return revenueOfDreamingInThisContract;
       }
   
@@ -322,4 +357,7 @@
       
           
   }
+  
+  
+  
   

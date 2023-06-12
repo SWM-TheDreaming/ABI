@@ -186,8 +186,6 @@ router.post('/:groupId/:title', async (req, res, next) => {
         );
       });
 
-    
-
   } catch (error) {
     console.log(error);
     return res.status(400).json(
@@ -226,19 +224,15 @@ router.get('/callContract/:groupId/:title', async (req, res, next) => {
     const encodedContract = require(`../build/${params.title}Contract.json`);
     
     const deployedContract = new client.web3.eth.Contract(encodedContract.abi, CA);
-    deployedContract.methods.callContractDetail().call().then(res => console.info(res)).catch(err=>console.log(err));
 
-    // deployedContract.methods
-    //   .callContractDetail()
-    //   .call({
-    //     from : process.env.SEND_ACCOUNT,
-    //     gas : 4000000
-    //   })
-    //   .then(result =>console.info(result))
-    //   .catch(err => console.log(err));
-
-    
-    
+    deployedContract.methods
+      .callContractDetail()
+      .call({
+        from : process.env.SEND_ACCOUNT,
+        gas : 4000000
+      })
+      .then(result =>console.info(result))
+      .catch(err => console.log(err));
 
     return res.status(201).json(
       {
