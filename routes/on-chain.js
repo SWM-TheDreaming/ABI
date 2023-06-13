@@ -58,12 +58,15 @@ router.post('/', async function(req, res, next) {
                     from: process.env.SEND_ACCOUNT
                   }).encodeABI();
     
-    client.web3.eth.getTransactionCount(process.env.SEND_ACCOUNT, (err, txCount) => {
-
+    client.web3.eth.getTransactionCount(process.env.SEND_ACCOUNT, async (err, txCount) => {
+      const gasPrice = await client.web3.eth.getGasPrice();
+      const block = await client.web3.eth.getBlock("latest");
+      console.log()
       const txObject = {
         nonce:    client.web3.utils.toHex(txCount),
-        gasLimit: 4000000,
-        gasPrice: client.web3.utils.toHex(client.web3.utils.toWei('10', 'gwei')),
+        gasLimit: block.gasLimit,
+        //gasPrice: client.web3.utils.toHex(client.web3.utils.toWei("53", 'gwei')),
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10)),
         data : deploy
       };
       

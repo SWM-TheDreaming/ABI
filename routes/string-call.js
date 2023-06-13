@@ -48,6 +48,9 @@ router.post('/client-payment/:groupId/:title', async (req, res, next) => {
 
     const deployedContract = await contractInit(params.groupId, params.title, client);
 
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
+
 		const txParams = {
 			deposit_payer_id : body.deposit_payer_id
     }
@@ -58,23 +61,28 @@ router.post('/client-payment/:groupId/:title', async (req, res, next) => {
 			)
       .send({
         from : process.env.SEND_ACCOUNT,
-        gas : 4000000
-      })
-      .then((receipt) =>{
-        
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
-            message : "컨트랙트 읽기에 성공했습니다.",
+            message : "컨트랙트 작성에 성공했습니다.",
             receipt
+            // result: {
+            //   "blockHash": receipt.blockHash,
+            //   "status": receipt.status,
+            //   "transactionHash": receipt.transactionHash
+            // }
           }
         );
-      })
-      .catch((err) => {
+      }).on('error', (err) => {
         console.log(err);
-        return res.status(400).json(
+        return res.status(401).json(
           {
-            message : "컨트랙트 읽기에 실패했습니다.",
-            err : err.message
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });

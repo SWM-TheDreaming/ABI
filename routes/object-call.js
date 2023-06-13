@@ -42,16 +42,19 @@ router.get('/contract-detail/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .callContractDetail()
       .call({
         from : process.env.SEND_ACCOUNT,
-        gas : 4000000
-      })
-      .then((receipt) =>{
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         const group_info = {};
-        const cutOff = ['0','1','2','3','4','5'];
+        const cutOff = ['0','1','2','3','4','5',"6","7","8"];
         for (let cts in receipt) {
           if (cts in cutOff) {
             continue
@@ -76,13 +79,12 @@ router.get('/contract-detail/:groupId/:title', async (req, res, next) => {
             group_info
           }
         );
-      })
-      .catch((err) => {
+      }).on('error', (err) => {
         console.log(err);
-        return res.status(400).json(
+        return res.status(401).json(
           {
-            message : "컨트랙트 읽기에 실패했습니다.",
-            err : err.message
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });
@@ -121,32 +123,37 @@ router.get('/group-deposit-detail/:groupId/:title', async (req, res, next) => {
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
 
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .callContractDepositDetail()
       .call({
         from : process.env.SEND_ACCOUNT,
-        gas : 4000000
-      })
-      .then((receipt) =>{
-        
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).then((receipt) => {
+        const clients = [];
+        receipt.forEach((rec) => {
+          const tmp = {
+            "deposit_payer_id" : rec[0],
+            "warranty_pledge" : rec[1],
+            "deposit_amount" : rec[2],
+            "payment_timestamp" : rec[3]
+          };
+          clients.push(tmp);
+
+        });
         return res.status(201).json(
           {
-            message : "컨트랙트 읽기에 성공했습니다.",
-            receipt
+            message : "컨트랙트 작성에 성공했습니다.",
+            clients
           }
         );
-      })
-      .catch((err) => {
+        
+      }).catch((err) => {
         console.log(err);
-        return res.status(400).json(
-          {
-            message : "컨트랙트 읽기에 실패했습니다.",
-            err : err.message
-          }
-        );
-      });
-
-
+      })
+    
   } catch (error) {
     console.log(error);
     return res.status(400).json(
@@ -179,28 +186,34 @@ router.get('/dreaming-deposit-detail/:groupId/:title', async (req, res, next) =>
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .callDreamingDepositDetail()
       .call({
         from : process.env.SEND_ACCOUNT,
-        gas : 4000000
-      })
-      .then((receipt) =>{
-        
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
-            message : "컨트랙트 읽기에 성공했습니다.",
+            message : "컨트랙트 작성에 성공했습니다.",
             receipt
+            // result: {
+            //   "blockHash": receipt.blockHash,
+            //   "status": receipt.status,
+            //   "transactionHash": receipt.transactionHash
+            // }
           }
         );
-      })
-      .catch((err) => {
+      }).on('error', (err) => {
         console.log(err);
-        return res.status(400).json(
+        return res.status(401).json(
           {
-            message : "컨트랙트 읽기에 실패했습니다.",
-            err : err.message
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });
@@ -238,28 +251,34 @@ router.get('/dreaming-log/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .callDreamingLog()
       .call({
         from : process.env.SEND_ACCOUNT,
-        gas : 4000000
-      })
-      .then((receipt) =>{
-        
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
-            message : "컨트랙트 읽기에 성공했습니다.",
+            message : "컨트랙트 작성에 성공했습니다.",
             receipt
+            // result: {
+            //   "blockHash": receipt.blockHash,
+            //   "status": receipt.status,
+            //   "transactionHash": receipt.transactionHash
+            // }
           }
         );
-      })
-      .catch((err) => {
+      }).on('error', (err) => {
         console.log(err);
-        return res.status(400).json(
+        return res.status(401).json(
           {
-            message : "컨트랙트 읽기에 실패했습니다.",
-            err : err.message
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });

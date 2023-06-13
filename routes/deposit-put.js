@@ -41,18 +41,34 @@ router.get('/end/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-    
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .putGroupStatusStartToEnd()
-			.call({ 
+			.call({
         from : process.env.SEND_ACCOUNT,
-        gas: 4000000
-      })
-      .on("receipt", (receipt) => {
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
             message : "컨트랙트 작성에 성공했습니다.",
             receipt
+            // result: {
+            //   "blockHash": receipt.blockHash,
+            //   "status": receipt.status,
+            //   "transactionHash": receipt.transactionHash
+            // }
+          }
+        );
+      }).on('error', (err) => {
+        console.log(err);
+        return res.status(401).json(
+          {
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });
@@ -90,18 +106,34 @@ router.get('/dreaming-revenue/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-    
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .putDreamingReturnAllDeposit()
-			.call({ 
+			.call({
         from : process.env.SEND_ACCOUNT,
-        gas: 4000000
-      })
-      .on("receipt", (receipt) => {
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
             message : "컨트랙트 작성에 성공했습니다.",
             receipt
+            // result: {
+            //   "blockHash": receipt.blockHash,
+            //   "status": receipt.status,
+            //   "transactionHash": receipt.transactionHash
+            // }
+          }
+        );
+      }).on('error', (err) => {
+        console.log(err);
+        return res.status(401).json(
+          {
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });
@@ -138,22 +170,28 @@ router.get('/stop/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-    
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .stopStudyGroupContract()
-			.call({ 
+			.call({
         from : process.env.SEND_ACCOUNT,
-        gas: 4000000
-      })
-      .on("receipt", (receipt) => {
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).then((receipt) => {
+        
         return res.status(201).json(
           {
             message : "컨트랙트 작성에 성공했습니다.",
             receipt
           }
         );
-      });
-
+        
+      }).catch((err) => {
+        console.log(err);
+      })
+      
+      
   } catch (error) {
     console.log(error);
     return res.status(400).json(

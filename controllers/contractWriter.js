@@ -9,7 +9,7 @@ const templateContract = (contractTitle) => {
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
-  contract adminContract {
+  contract ${contractTitle} {
   
       ///@notice When Contract be ended, ReadOnly
       bool isContractRun;
@@ -104,6 +104,9 @@ const templateContract = (contractTitle) => {
       * @key:group_capacity -> unit (명)
       * @key:group_deposit_per_person -> unit (원)
       * @key:group_period -> unit (unix time)
+      * @key:recruitment_period -> uint (unix time)
+      * @key:minimum_attendance -> uint 
+      * @key: minimum_mission_completion -> uint
       * @enum:GroupStatus 
       */
       struct GroupContract {
@@ -112,6 +115,9 @@ const templateContract = (contractTitle) => {
           uint group_capacity; 
           uint group_deposit_per_person; 
           uint group_deadline;
+          uint recruitment_period;
+          uint minimum_attendance;
+          uint minimum_mission_completion;
           GroupStatus groupStatus;
       }
   
@@ -140,16 +146,19 @@ const templateContract = (contractTitle) => {
       * @notice Study group's initial contract create request handler
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function setStudyGroupContracts(
+      function setStudyGroupContract(
           string memory leader_id,
           string memory group_id,
           uint group_capacity,
           uint group_deposit_per_person,
-          uint group_period
+          uint group_period,
+          uint recruitment_period,
+          uint minimum_attendance,
+          uint minimum_mission_completion
       ) isRun onlyOwner public returns(string memory) {
       
           groupContract = GroupContract(
-              leader_id, group_id, group_capacity, group_deposit_per_person, (block.timestamp + (group_period * 1 days)), GroupStatus(0)
+              leader_id, group_id, group_capacity, group_deposit_per_person, (block.timestamp + (group_period * 1 days)),(block.timestamp + (recruitment_period * 1 days)),minimum_attendance ,minimum_mission_completion, GroupStatus(0)
           );
           
           return(response_post_success_msg);
@@ -171,6 +180,34 @@ const templateContract = (contractTitle) => {
           } else {
               return(false);
           }
+      }
+
+      /**
+      * @notice Check the client already paid the deposit
+      * @param user_id : Points paid by the client
+      * @dev This Function is only callable in the contract
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function callCheckAlreadyPayment(
+          string memory user_id
+      ) private view returns(bool) {
+          for (uint i = 0; i < studyGroupDeposits.length; i++) {
+            if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) == keccak256(bytes(user_id))) {
+                return(false);
+            }
+          }
+          return (true);
+      }
+
+      /**
+      * @notice Check All clients are paid the deposit
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function callCheckAllClientsPayment() private view returns(bool) {
+          if (studyGroupDeposits.length == groupContract.group_capacity) {
+            return true;
+          } 
+          return false;
       }
   
       /**
@@ -227,7 +264,7 @@ const templateContract = (contractTitle) => {
   
       /**
       * @notice Request to add the deposit amount to the deposit according to the contract 
-      *         Change status if paid in full
+      * @return bool : flag of all group member pay the deposit
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
       function patchClientPaymentDeposit(
@@ -235,21 +272,22 @@ const templateContract = (contractTitle) => {
           string memory warrenty_pledge,
           string memory group_id,
           uint deposit_amount
-      ) isRun onlyOwner public returns(GroupStatus, string memory) {
+      ) isRun onlyOwner public returns(string memory) {
           require(callCheckGroupDeposit(deposit_amount), "deposit amount is not same in the contarct");
-
+          require(callCheckAlreadyPayment(deposit_payer_id), "Already paid the deposit");
+          require(!callCheckAllClientsPayment(), "All Uer Already Paid the deposit");
           studyGroupDeposits.push(Deposit(
               deposit_payer_id,
               warrenty_pledge,
               deposit_amount,
               block.timestamp
           ));
+
           dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, "dreaming_app", deposit_amount, "dreaming_app", group_id, "deposit payment for enrollment"));
           if (studyGroupDeposits.length == groupContract.group_capacity) {
-              groupContract.groupStatus = GroupStatus(1);
+            return(response_post_success_msg);              
           }
-  
-          return(groupContract.groupStatus, response_post_success_msg);
+          return(response_post_success_msg);
   
       }
   
@@ -328,6 +366,22 @@ const templateContract = (contractTitle) => {
               groupContract
           );
       }
+
+      /**
+      * @notice Status change request after start condition
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function putGroupStatusPendingToStart() isRun public returns(GroupStatus, string memory, GroupContract memory) {
+          require(callCheckAllClientsPayment(), "All user need to pay the deposit before start the group study");
+          require(groupContract.groupStatus == GroupStatus(0), "Study is not pending status");
+          groupContract.groupStatus = GroupStatus(1);
+  
+          return(
+              groupContract.groupStatus,
+              response_post_success_msg,
+              groupContract
+          );
+      }
   
       /**
       * @notice Return Dreaming Revenue when Study is end and is not stop.
@@ -343,24 +397,32 @@ const templateContract = (contractTitle) => {
           dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "dreaming finance", revenueOfDreamingInThisContract, "dreaming finance", "dreaming app", "settles the profit that the service can earn."));
           return revenueOfDreamingInThisContract;
       }
-  
+      
+    
+
       /**
       * @notice Study group stop request (when group_status is pending or end)
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function stopStudyGroupContract() isRun public returns(string memory) {
+      function stopStudyGroupContract() isRun public returns(string memory, Deposit[] memory) {
           GroupStatus groupStatus = groupContract.groupStatus;
           require(groupStatus != GroupStatus(1), "Study is running now");
           require(dreamingDeposit.deposit_balance == 0, "Dreaming Deposit is not payed to Dreaming");
+          uint _length = studyGroupDeposits.length;
+          
+          Deposit[] memory resultDeposit = new Deposit[](_length);
+          for (uint i = 0; i < _length; i++) {
+              resultDeposit[i] = studyGroupDeposits[i];
+              studyGroupDeposits[i].deposit_amount = 0;
+              dreamingLogs.push(DreamingLog("dreaming", block.timestamp, resultDeposit[i].deposit_payer_id, resultDeposit[i].deposit_amount, resultDeposit[i].deposit_payer_id, "memory", "Make Zero After withdraw the balance"));
+          }
+
           isContractRun = false;
-          return(response_post_success_msg);
+          return(response_post_success_msg, resultDeposit);
       }    
       
           
   }
-  
-  
-  
   `
 }
 

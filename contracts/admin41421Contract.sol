@@ -8,7 +8,7 @@
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
-  contract adminContract {
+  contract admin41421Contract {
   
       ///@notice When Contract be ended, ReadOnly
       bool isContractRun;

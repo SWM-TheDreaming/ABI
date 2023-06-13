@@ -41,6 +41,8 @@ router.post('/client-payment/:groupId/:title', async (req, res, next) => {
     const params = req.params;
     const body = req.body;
 
+    const txHash = {};
+
     if (regExp.test(params.title)) {
       return res.status(401).json(
         {
@@ -59,7 +61,8 @@ router.post('/client-payment/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-    
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .patchClientPaymentDeposit(
         txParams.deposit_payer_id,
@@ -68,13 +71,32 @@ router.post('/client-payment/:groupId/:title', async (req, res, next) => {
         txParams.deposit_amount
       ).send({ 
         from : process.env.SEND_ACCOUNT,
-        gas: 4000000
-      })
-      .on("receipt", (receipt) => {
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        txHash.hash = hash;
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
             message : "컨트랙트 작성에 성공했습니다.",
-            receipt
+            result: {
+              "blockHash": receipt.blockHash,
+              "status": receipt.status,
+              "transactionHash": receipt.transactionHash
+            }
+          }
+        );
+      }).on('error', (err) => {
+        console.log(err.message);
+        return res.status(401).json(
+          {
+            message : {
+              "message" : "block explore site에서 transactionHash 값을 복사해 예외 사항을 확인하세요",
+              "block explore site" : "https://sepolia.etherscan.io/",
+              "transactionHash" : txHash.hash
+            },
+            
           }
         );
       });
@@ -124,20 +146,36 @@ router.post('/kick-client/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-    
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .patchDistributeKickedClientDeposit(
         txParams.deposit_payer_id,
         txParams.group_id
       ).send({ 
         from : process.env.SEND_ACCOUNT,
-        gas: 4000000
-      })
-      .on("receipt", (receipt) => {
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
             message : "컨트랙트 작성에 성공했습니다.",
             receipt
+            // result: {
+            //   "blockHash": receipt.blockHash,
+            //   "status": receipt.status,
+            //   "transactionHash": receipt.transactionHash
+            // }
+          }
+        );
+      }).on('error', (err) => {
+        console.log(err);
+        return res.status(401).json(
+          {
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });
@@ -183,19 +221,35 @@ router.get('/attribute-client/:groupId/:title', async (req, res, next) => {
     }
     
     const deployedContract = await contractInit(params.groupId, params.title, client);
-    
+    const gasPrice = await client.web3.eth.getGasPrice();
+    const block = await client.web3.eth.getBlock("latest");
     deployedContract.methods
       .patchAttributeAllDepositsToDreaming(
         txParams.group_id
       ).send({ 
         from : process.env.SEND_ACCOUNT,
-        gas: 4000000
-      })
-      .on("receipt", (receipt) => {
+        gasLimit: block.gasLimit,
+        gasPrice:client.web3.utils.toHex(parseInt(gasPrice * 10))
+      }).once('transactionHash', (hash) => {
+        console.info('transactionHash', hash);
+      }).once("receipt", (receipt) => {
         return res.status(201).json(
           {
             message : "컨트랙트 작성에 성공했습니다.",
             receipt
+            // result: {
+            //   "blockHash": receipt.blockHash,
+            //   "status": receipt.status,
+            //   "transactionHash": receipt.transactionHash
+            // }
+          }
+        );
+      }).on('error', (err) => {
+        console.log(err);
+        return res.status(401).json(
+          {
+            message : "컨트랙트 생성에 실패했습니다.",
+            error : err.message
           }
         );
       });
