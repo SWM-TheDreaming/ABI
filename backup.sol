@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-  pragma solidity ^0.8.19;
+  pragma solidity ^0.8.18;
   
   
   
@@ -8,11 +8,14 @@
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
-  contract test22Contract {
+  contract testContract {
   
       ///@notice When Contract be ended, ReadOnly
       bool isContractRun;
       
+      ///@notice non kicked user size
+      uint distributableDeositUserSize;
+
       ///@notice Response Msg for ABI server
       
       string response_success_msg = "200_OK";
@@ -96,6 +99,7 @@
           string warranty_pledge;
           uint deposit_amount;
           uint payment_timestamp;
+          bool kicked_flag;
       }
   
       /**
@@ -128,7 +132,13 @@
       */
       Deposit[] studyGroupDeposits;
       
-  
+        
+      /**
+      * @notice After stop the Study group, Final Study groups Deposits Balance and This Deposit[] only wrote one time.
+      */
+      Deposit[] finalStudyGroupDeposits;
+
+
       ///@notice Check function caller is admin of the dreaming
       modifier onlyOwner() {
           require(msg.sender == _owner, "The caller is not owner.");
@@ -140,7 +150,7 @@
           require(isContractRun == true, "The Contract is end. Read Only");
           _;
       }
-  
+      
       /**
       * @notice Study group's initial contract create request handler
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -159,7 +169,7 @@
           groupContract = GroupContract(
               leader_id, group_id, group_capacity, group_deposit_per_person, (block.timestamp + (group_period * 1 days)),(block.timestamp + (recruitment_period * 1 days)),minimum_attendance ,minimum_mission_completion, GroupStatus(0)
           );
-          
+          distributableDeositUserSize = group_capacity + 1;
           return(response_post_success_msg);
           
       }
@@ -249,6 +259,7 @@
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
       function callDreamingDepositDetail() onlyOwner public view returns(DreamingDeposit memory) {
+          require(!isContractRun, "Contract is not ended. Want to check dreaming deposit, check dreaming log first.");
           return dreamingDeposit;
       }
 
@@ -259,7 +270,15 @@
       function callDreamingLog() onlyOwner public view returns(DreamingLog[] memory) {
           return dreamingLogs;
       }
-  
+
+      /**
+      * @notice Calling the final study group deposits array
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function callFinalStudyGroupDeposits() onlyOwner public view returns(Deposit[] memory) {
+          require(!isContractRun, "Contract is not ended. Want to check deposit, check dreaming log first.");
+          return finalStudyGroupDeposits;
+      }
   
       /**
       * @notice Request to add the deposit amount to the deposit according to the contract 
@@ -279,7 +298,8 @@
               deposit_payer_id,
               warrenty_pledge,
               deposit_amount,
-              block.timestamp
+              block.timestamp,
+              false
           ));
 
           dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, "dreaming_app", deposit_amount, "dreaming_app", group_id, "deposit payment for enrollment"));
@@ -299,18 +319,22 @@
           string memory deposit_payer_id,
           string memory group_id
       ) isRun onlyOwner public returns(string memory) {
+          require(distributableDeositUserSize > 1, "All People were kicked");
           uint returnableDepositAmount = 0;
           for (uint i = 0; i < studyGroupDeposits.length; i++) {
               if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) == keccak256(bytes(deposit_payer_id))) {
+                  require(studyGroupDeposits[i].deposit_amount != 0, "deposit payer balance is already 0");
                   dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, group_id, studyGroupDeposits[i].deposit_amount, group_id, "contract memory", "The deposit was taken because the user was kicked out."));
                   returnableDepositAmount += studyGroupDeposits[i].deposit_amount;
                   studyGroupDeposits[i].deposit_amount = 0;
+                  studyGroupDeposits[i].kicked_flag = true;
+                  distributableDeositUserSize -= 1;
                   break;
               }
           }
   
           /// @dev split equally among the rest and Dreaming. Because Solidity can not handle float type
-          returnableDepositAmount /= studyGroupDeposits.length;
+          returnableDepositAmount /= distributableDeositUserSize;
           dreamingDeposit.deposit_balance += returnableDepositAmount;
           dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "contract memory", returnableDepositAmount, "contract memory", "dreaming finance", "The deposit is distributed because user was kicked."));
           dreamingDeposit.dreamingFinance.push(DreamingFinance(groupContract.group_id, deposit_payer_id, "Kick of player", returnableDepositAmount, block.timestamp));
@@ -358,7 +382,7 @@
           require(groupContract.groupStatus != GroupStatus(2), "Study is already ended");
           
           groupContract.groupStatus = GroupStatus(2);
-  
+            
           return(
               groupContract.groupStatus,
               response_post_success_msg,
@@ -387,7 +411,7 @@
       *         Also Balance is not zero.
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function putDreamingReturnAllDeposit() isRun onlyOwner public returns(uint) {
+      function putReturnDreamingAllDeposit() onlyOwner public returns(uint) {
           require(dreamingDeposit.deposit_balance != 0, "Dreaming Deposit Balance is 0");
           
           uint revenueOfDreamingInThisContract = dreamingDeposit.deposit_balance;
@@ -396,30 +420,47 @@
           dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "dreaming finance", revenueOfDreamingInThisContract, "dreaming finance", "dreaming app", "settles the profit that the service can earn."));
           return revenueOfDreamingInThisContract;
       }
-      
+
+      /**
+      * @notice Return Dreaming Revenue when Study is end and is not stop.
+      *         Also Balance is not zero.
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function putSettleDeposit() isRun onlyOwner public returns(string memory) {
+          GroupStatus groupStatus = groupContract.groupStatus;
+          require(groupStatus != GroupStatus(2), "Study is not ended");
+          uint _length = studyGroupDeposits.length;
+          
+          for (uint i = 0; i < _length; i++) {
+              finalStudyGroupDeposits.push(studyGroupDeposits[i]);
+              studyGroupDeposits[i].deposit_amount = 0;
+              dreamingLogs.push(DreamingLog("dreaming", block.timestamp, studyGroupDeposits[i].deposit_payer_id, studyGroupDeposits[i].deposit_amount, studyGroupDeposits[i].deposit_payer_id, finalStudyGroupDeposits[i].deposit_payer_id, "Fixed final study group users balance"));
+          }
+          return response_success_msg;
+      }
     
 
       /**
       * @notice Study group stop request (when group_status is pending or end)
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function stopStudyGroupContract() isRun public returns(string memory, Deposit[] memory) {
+      function stopStudyGroupContract() isRun public returns(string memory) {
           GroupStatus groupStatus = groupContract.groupStatus;
           require(groupStatus != GroupStatus(1), "Study is running now");
           require(dreamingDeposit.deposit_balance == 0, "Dreaming Deposit is not payed to Dreaming");
           uint _length = studyGroupDeposits.length;
           
-          Deposit[] memory resultDeposit = new Deposit[](_length);
           for (uint i = 0; i < _length; i++) {
-              resultDeposit[i] = studyGroupDeposits[i];
+              finalStudyGroupDeposits.push(studyGroupDeposits[i]);
               studyGroupDeposits[i].deposit_amount = 0;
-              dreamingLogs.push(DreamingLog("dreaming", block.timestamp, resultDeposit[i].deposit_payer_id, resultDeposit[i].deposit_amount, resultDeposit[i].deposit_payer_id, "memory", "Make Zero After withdraw the balance"));
+              dreamingLogs.push(DreamingLog("dreaming", block.timestamp, studyGroupDeposits[i].deposit_payer_id, studyGroupDeposits[i].deposit_amount, studyGroupDeposits[i].deposit_payer_id, finalStudyGroupDeposits[i].deposit_payer_id, "Fixed final study group users balance"));
           }
 
           isContractRun = false;
-          return(response_post_success_msg, resultDeposit);
+          return(response_post_success_msg);
       }    
       
+    
           
   }
   

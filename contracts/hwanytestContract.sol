@@ -8,11 +8,14 @@
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
-  contract adminContract {
+  contract hwanytestContract {
   
       ///@notice When Contract be ended, ReadOnly
       bool isContractRun;
       
+      ///@notice non kicked user size
+      uint distributableDeositUserSize;
+
       ///@notice Response Msg for ABI server
       
       string response_success_msg = "200_OK";
@@ -96,6 +99,7 @@
           string warranty_pledge;
           uint deposit_amount;
           uint payment_timestamp;
+          bool kicked_flag;
       }
   
       /**
@@ -165,7 +169,7 @@
           groupContract = GroupContract(
               leader_id, group_id, group_capacity, group_deposit_per_person, (block.timestamp + (group_period * 1 days)),(block.timestamp + (recruitment_period * 1 days)),minimum_attendance ,minimum_mission_completion, GroupStatus(0)
           );
-          
+          distributableDeositUserSize = group_capacity + 1;
           return(response_post_success_msg);
           
       }
@@ -255,6 +259,7 @@
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
       function callDreamingDepositDetail() onlyOwner public view returns(DreamingDeposit memory) {
+          require(!isContractRun, "Contract is not ended. Want to check dreaming deposit, check dreaming log first.");
           return dreamingDeposit;
       }
 
@@ -292,7 +297,8 @@
               deposit_payer_id,
               warrenty_pledge,
               deposit_amount,
-              block.timestamp
+              block.timestamp,
+              false
           ));
 
           dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, "dreaming_app", deposit_amount, "dreaming_app", group_id, "deposit payment for enrollment"));
@@ -312,18 +318,22 @@
           string memory deposit_payer_id,
           string memory group_id
       ) isRun onlyOwner public returns(string memory) {
+          require(distributableDeositUserSize > 1, "All People were kicked");
           uint returnableDepositAmount = 0;
           for (uint i = 0; i < studyGroupDeposits.length; i++) {
               if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) == keccak256(bytes(deposit_payer_id))) {
+                  require(studyGroupDeposits[i].deposit_amount != 0, "deposit payer balance is already 0");
                   dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, group_id, studyGroupDeposits[i].deposit_amount, group_id, "contract memory", "The deposit was taken because the user was kicked out."));
                   returnableDepositAmount += studyGroupDeposits[i].deposit_amount;
                   studyGroupDeposits[i].deposit_amount = 0;
+                  studyGroupDeposits[i].kicked_flag = true;
+                  distributableDeositUserSize -= 1;
                   break;
               }
           }
   
           /// @dev split equally among the rest and Dreaming. Because Solidity can not handle float type
-          returnableDepositAmount /= studyGroupDeposits.length;
+          returnableDepositAmount /= distributableDeositUserSize;
           dreamingDeposit.deposit_balance += returnableDepositAmount;
           dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "contract memory", returnableDepositAmount, "contract memory", "dreaming finance", "The deposit is distributed because user was kicked."));
           dreamingDeposit.dreamingFinance.push(DreamingFinance(groupContract.group_id, deposit_payer_id, "Kick of player", returnableDepositAmount, block.timestamp));
@@ -435,5 +445,7 @@
     
           
   }
+  
+  
   
   

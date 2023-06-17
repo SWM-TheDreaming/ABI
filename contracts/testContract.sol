@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-  pragma solidity ^0.8.19;
+  pragma solidity ^0.8.18;
   
   
   
@@ -128,7 +128,13 @@
       */
       Deposit[] studyGroupDeposits;
       
-  
+        
+      /**
+      * @notice After stop the Study group, Final Study groups Deposits Balance and This Deposit[] only wrote one time.
+      */
+      Deposit[] finalStudyGroupDeposits;
+
+
       ///@notice Check function caller is admin of the dreaming
       modifier onlyOwner() {
           require(msg.sender == _owner, "The caller is not owner.");
@@ -259,7 +265,14 @@
       function callDreamingLog() onlyOwner public view returns(DreamingLog[] memory) {
           return dreamingLogs;
       }
-  
+
+      /**
+      * @notice Calling the final study group deposits array
+      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
+      */
+      function callFinalStudyGroupDeposits() onlyOwner public view returns(Deposit[] memory) {
+          return finalStudyGroupDeposits;
+      }
   
       /**
       * @notice Request to add the deposit amount to the deposit according to the contract 
@@ -403,23 +416,24 @@
       * @notice Study group stop request (when group_status is pending or end)
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function stopStudyGroupContract() isRun public returns(string memory, Deposit[] memory) {
+      function stopStudyGroupContract() isRun public returns(string memory) {
           GroupStatus groupStatus = groupContract.groupStatus;
           require(groupStatus != GroupStatus(1), "Study is running now");
           require(dreamingDeposit.deposit_balance == 0, "Dreaming Deposit is not payed to Dreaming");
           uint _length = studyGroupDeposits.length;
           
-          Deposit[] memory resultDeposit = new Deposit[](_length);
           for (uint i = 0; i < _length; i++) {
-              resultDeposit[i] = studyGroupDeposits[i];
+              finalStudyGroupDeposits.push(studyGroupDeposits[i]);
               studyGroupDeposits[i].deposit_amount = 0;
-              dreamingLogs.push(DreamingLog("dreaming", block.timestamp, resultDeposit[i].deposit_payer_id, resultDeposit[i].deposit_amount, resultDeposit[i].deposit_payer_id, "memory", "Make Zero After withdraw the balance"));
+              dreamingLogs.push(DreamingLog("dreaming", block.timestamp, studyGroupDeposits[i].deposit_payer_id, studyGroupDeposits[i].deposit_amount, studyGroupDeposits[i].deposit_payer_id, finalStudyGroupDeposits[i].deposit_payer_id, "Fixed final study group users balance"));
           }
 
           isContractRun = false;
-          return(response_post_success_msg, resultDeposit);
+          return(response_post_success_msg);
       }    
       
+    
           
   }
+  
   
