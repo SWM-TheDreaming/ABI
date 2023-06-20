@@ -58,31 +58,30 @@ router.get("/contract-detail/:groupId/:title", async (req, res, next) => {
 
     const gasPrice = await client.web3.eth.getGasPrice();
     const block = await client.web3.eth.getBlock("latest");
-
-    const receipt = await deployedContract.methods
-      .callContractDetail()
-      .call({
+    try {
+      const receipt = await deployedContract.methods.callContractDetail().call({
         from: process.env.SEND_ACCOUNT,
         gasLimit: block.gasLimit,
         gasPrice: client.web3.utils.toHex(
-          client.web3.utils.toWei(gasPrice, "mwei")
+          client.web3.utils.toWei(gasPrice, "wei")
         ),
-      })
-      .catch((err) => {
-        return res.status(400).json({
-          message: "컨트랙트 읽기에 실패했습니다.",
-          error: err.message,
-        });
       });
-    console.info(receipt);
-    Object.keys(txResult).forEach((key) => {
-      txResult[key] = receipt[key];
-    });
 
-    return res.status(201).json({
-      message: "컨트랙트 읽기에 성공했습니다.",
-      txResult,
-    });
+      console.info(receipt);
+      Object.keys(txResult).forEach((key) => {
+        txResult[key] = receipt[key];
+      });
+
+      return res.status(201).json({
+        message: "컨트랙트 읽기에 성공했습니다.",
+        txResult,
+      });
+    } catch (err) {
+      return res.status(400).json({
+        message: "컨트랙트 읽기에 실패했습니다.",
+        error: err.message,
+      });
+    }
   } catch (error) {
     console.log(error);
     return res.status(400).json({
