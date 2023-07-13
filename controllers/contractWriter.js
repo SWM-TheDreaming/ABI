@@ -1,4 +1,4 @@
-const templateContract = (contractTitle) => {
+const templateContract = () => {
   return `// SPDX-License-Identifier: MIT
   pragma solidity ^0.8.18;
   
@@ -9,7 +9,7 @@ const templateContract = (contractTitle) => {
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
-  contract ${contractTitle} {
+  contract suite_contract {
   
       ///@notice When Contract be ended, ReadOnly
       bool isContractRun;
@@ -97,7 +97,6 @@ const templateContract = (contractTitle) => {
       */
       struct Deposit {
           string deposit_payer_id;
-          string warranty_pledge;
           uint deposit_amount;
           uint payment_timestamp;
           bool kicked_flag;
@@ -152,6 +151,7 @@ const templateContract = (contractTitle) => {
           _;
       }
       
+      // ATTACHED
       /**
       * @notice Study group's initial contract create request handler
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -245,6 +245,7 @@ const templateContract = (contractTitle) => {
           return(studyGroupDeposits);
       }
 
+      //ATTACHED
       /**
       * @notice Calling the study group's Contract details
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -269,7 +270,8 @@ const templateContract = (contractTitle) => {
       function callDreamingLog() onlyOwner public view returns(DreamingLog[] memory) {
           return dreamingLogs;
       }
-
+     
+      //ATTACHED
       /**
       * @notice Calling the final study group deposits array
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -278,6 +280,7 @@ const templateContract = (contractTitle) => {
           return finalStudyGroupDeposits;
       }
   
+      //ATTACHED
       /**
       * @notice Request to add the deposit amount to the deposit according to the contract 
       * @return bool : flag of all group member pay the deposit
@@ -285,7 +288,6 @@ const templateContract = (contractTitle) => {
       */
       function patchClientPaymentDeposit(
           string memory deposit_payer_id,
-          string memory warrenty_pledge,
           string memory group_id,
           uint deposit_amount
       ) isRun onlyOwner public returns(string memory) {
@@ -294,7 +296,6 @@ const templateContract = (contractTitle) => {
           require(!callCheckAllClientsPayment(), "All Uer Already Paid the deposit");
           studyGroupDeposits.push(Deposit(
               deposit_payer_id,
-              warrenty_pledge,
               deposit_amount,
               block.timestamp,
               false
@@ -369,25 +370,22 @@ const templateContract = (contractTitle) => {
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
       function putGroupStatusPendingToStart() isRun public returns(GroupStatus, string memory, GroupContract memory) {
-          require(callCheckAllClientsPayment(), "All user need to pay the deposit before start the group study");
           require(groupContract.groupStatus == GroupStatus(0), "Study is not pending status");
           groupContract.groupStatus = GroupStatus(1);
-  
           return(
               groupContract.groupStatus,
               response_post_success_msg,
               groupContract
           );
       }
-
+      
+      //ATTACHED
       /**
       * @notice Return Dreaming Revenue when Study is end and is not stop.
       *         Also Balance is not zero.
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
       function putSettleDeposit() isRun onlyOwner public returns(string memory) {
-          GroupStatus groupStatus = groupContract.groupStatus;
-          require(groupStatus == GroupStatus(2), "Study is not ended");
           uint _length = studyGroupDeposits.length;
           
           for (uint i = 0; i < _length; i++) {
@@ -398,7 +396,8 @@ const templateContract = (contractTitle) => {
           return response_success_msg;
       }
     
-
+    
+      //ATTACHED
       /**
       * @notice Study group stop request (when group_status is pending or end)
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.

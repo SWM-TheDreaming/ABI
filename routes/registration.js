@@ -20,38 +20,29 @@ const conn = sqlCon();
 const router = express.Router();
 
 const privateKey = Buffer.from(process.env.SEND_ACCOUNT_PK, "hex");
-const regExp = /[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#$%&\\\=\(\'\"] /g;
 
 /**
  * @Notice Write Smart Contract and Deploy on Chain Network
  *
  * @Body
  *  group_id : Long group_id / 1
- *  title : String title / not included !, @, # ... / testGorupName
+ *  title : String title
  *
  */
 router.post("/", async function (req, res, next) {
   try {
     const contractInfo = req.body;
 
-    if (regExp.test(contractInfo.title)) {
-      return res.status(401).json({
-        message:
-          "그룹 텍스트에 특수문자가 있는 경우 컨트랙트를 생성할 수 없습니다",
-      });
-    }
-
-    const contractTitle = contractInfo.title + "Contract";
     const hashedGroupInfo = await makeGroupHashedID(
       contractInfo.group_id,
-      contractInfo.title
+      contractInfo.title.replace(" ", "")
     );
 
     const contractWriteResult = {};
     const txHash = {};
 
     console.log("transaction...compiling contract .....");
-    const [abi, bytecode] = Contract.compile(contractTitle);
+    const [abi, bytecode] = Contract.compile(hashedGroupInfo.crypt);
 
     const MyContract = new client.web3.eth.Contract(abi);
 
@@ -70,7 +61,7 @@ router.post("/", async function (req, res, next) {
           nonce: client.web3.utils.toHex(txCount),
           gasLimit: block.gasLimit,
           gasPrice: client.web3.utils.toHex(
-            client.web3.utils.toWei(gasPrice, "mwei")
+            client.web3.utils.toWei(gasPrice, "mwei") * 10
           ),
           data: deploy,
         };
@@ -102,12 +93,10 @@ router.post("/", async function (req, res, next) {
           contractWriteResult.transactionHash = receipt.transactionHash;
           contractWriteResult.status = receipt.status;
 
-          await conn.execute("INSERT INTO contracts VALUES (?,?,?,?,?,?,?)", [
+          await conn.execute("INSERT INTO contracts VALUES (?,?,?,?,?)", [
             null,
             hashedGroupInfo.crypt,
             contractWriteResult.contractAddress,
-            contractTitle,
-            hashedGroupInfo.salt,
             nowTime,
             nowTime,
           ]);
@@ -127,9 +116,6 @@ router.post("/", async function (req, res, next) {
           console.log(err);
           return res.status(401).json({
             message: {
-              message:
-                "block explore site에서 transactionHash 값을 복사해 TX 결과를 확인하세요.",
-              "block explore site": "https://sepolia.etherscan.io/",
               transactionHash: txHash.hash,
               error_reason: err.reason,
             },

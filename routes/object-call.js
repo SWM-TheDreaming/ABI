@@ -20,8 +20,6 @@ const client = new Client(process.env.BLOCK_CHAIN_HTTP_PROVIDER);
 const conn = sqlCon();
 const router = express.Router();
 
-const regExp = /[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#$%&\\\=\(\'\"]/g;
-
 /**
  * @Notice callContractDetail Call Router
  *
@@ -45,14 +43,9 @@ router.get("/contract-detail/:groupId/:title", async (req, res, next) => {
       groupStatus: "",
     };
 
-    if (regExp.test(params.title)) {
-      return res.status(401).json({
-        message: "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
-      });
-    }
     const hashedGroupInfo = await makeGroupHashedID(
       params.groupId,
-      params.title
+      params.title.replace(" ", "")
     );
     const deployedContract = await contractInit(hashedGroupInfo, client);
 
@@ -103,14 +96,9 @@ router.get("/group-deposit-detail/:groupId/:title", async (req, res, next) => {
   try {
     const params = req.params;
 
-    if (regExp.test(params.title)) {
-      return res.status(401).json({
-        message: "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
-      });
-    }
     const hashedGroupInfo = await makeGroupHashedID(
       params.groupId,
-      params.title
+      params.title.replace(" ", "")
     );
     const deployedContract = await contractInit(hashedGroupInfo, client);
 
@@ -129,17 +117,18 @@ router.get("/group-deposit-detail/:groupId/:title", async (req, res, next) => {
         });
 
       console.info(receipt);
+
       const txResult = [];
       receipt.forEach((rec) => {
         const tmp = {
           deposit_payer_id: rec[0],
-          warranty_pledge: rec[1],
-          deposit_amount: rec[2],
-          payment_timestamp: rec[3],
-          kicked_flag: rec[4],
+          deposit_amount: rec[1],
+          payment_timestamp: rec[2],
+          kicked_flag: rec[3],
         };
         txResult.push(tmp);
       });
+
       return res.status(201).json({
         message: "컨트랙트 읽기에 성공했습니다.",
         txResult,
@@ -174,14 +163,9 @@ router.get(
     try {
       const params = req.params;
 
-      if (regExp.test(params.title)) {
-        return res.status(401).json({
-          message: "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
-        });
-      }
       const hashedGroupInfo = await makeGroupHashedID(
         params.groupId,
-        params.title
+        params.title.replace(" ", "")
       );
       const deployedContract = await contractInit(hashedGroupInfo, client);
 
@@ -193,7 +177,7 @@ router.get(
           from: process.env.SEND_ACCOUNT,
           gasLimit: block.gasLimit,
           gasPrice: client.web3.utils.toHex(
-            client.web3.utils.toWei(gasPrice, "mwei")
+            client.web3.utils.toWei(gasPrice, "mwei") * 10
           ),
         })
         .catch((err) => {
@@ -202,15 +186,23 @@ router.get(
             error: err.message,
           });
         });
-      console.info(receipt);
+      console.info(receipt.deposit_balance);
+
+      const txResult = [];
+      receipt.dreamingFinance.forEach((rec) => {
+        const tmp = {
+          group_id: rec[0],
+          payer_id: rec[1],
+          payed_reason: rec[2],
+          payed_amount: rec[3],
+          timestamp: rec[4],
+        };
+        txResult.push(tmp);
+      });
       return res.status(201).json({
         message: "컨트랙트 읽기에 성공했습니다.",
-        receipt,
-        // result: {
-        //   "blockHash": receipt.blockHash,
-        //   "status": receipt.status,
-        //   "transactionHash": receipt.transactionHash
-        // }
+        txResult,
+        depositBalance: receipt.deposit_balance,
       });
     } catch (error) {
       console.log(error);
@@ -222,73 +214,6 @@ router.get(
     }
   }
 );
-
-/**
- * @Notice callDreamingLog Call Router
- *
- * @Param groupId : Long group_id
- * @Param title : String title / Not included !,@,#, ...
- *
- */
-router.get("/dreaming-log/:groupId/:title", async (req, res, next) => {
-  try {
-    const params = req.params;
-
-    if (regExp.test(params.title)) {
-      return res.status(401).json({
-        message: "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
-      });
-    }
-    const hashedGroupInfo = await makeGroupHashedID(
-      params.groupId,
-      params.title
-    );
-    const deployedContract = await contractInit(hashedGroupInfo, client);
-
-    const gasPrice = await client.web3.eth.getGasPrice();
-    const block = await client.web3.eth.getBlock("latest");
-    const receipt = await deployedContract.methods
-      .callDreamingLog()
-      .call({
-        from: process.env.SEND_ACCOUNT,
-        gasLimit: block.gasLimit,
-        gasPrice: client.web3.utils.toHex(
-          client.web3.utils.toWei(gasPrice, "mwei")
-        ),
-      })
-      .catch((err) => {
-        return res.status(400).json({
-          message: "컨트랙트 읽기에 실패했습니다.",
-          error: err.message,
-        });
-      });
-    console.log(receipt);
-    const txResult = [];
-    receipt.forEach((rec) => {
-      const tmp = {
-        who: rec[0],
-        timestamp: rec[1],
-        where: rec[2],
-        amount: rec[3],
-        from: rec[4],
-        to: rec[5],
-        why: rec[6],
-      };
-      txResult.push(tmp);
-    });
-    return res.status(201).json({
-      message: "컨트랙트 읽기에 성공했습니다.",
-      txResult,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      message:
-        "존재하지 않는 그룹의 스마트 컨트랙트 입니다. ID는 Long type 식별자를 썼는지, Title에 오타가 없는지 확인하세요.",
-      error: error.message,
-    });
-  }
-});
 
 /**
  * @Notice callFinalStudyGroupDeposits Call Router
@@ -303,14 +228,9 @@ router.get(
     try {
       const params = req.params;
 
-      if (regExp.test(params.title)) {
-        return res.status(401).json({
-          message: "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
-        });
-      }
       const hashedGroupInfo = await makeGroupHashedID(
         params.groupId,
-        params.title
+        params.title.replace(" ", "")
       );
       const deployedContract = await contractInit(hashedGroupInfo, client);
 
@@ -333,10 +253,9 @@ router.get(
         receipt.forEach((rec) => {
           const tmp = {
             deposit_payer_id: rec[0],
-            warranty_pledge: rec[1],
-            deposit_amount: rec[2],
-            payment_timestamp: rec[3],
-            kicked_flag: rec[4],
+            deposit_amount: rec[1],
+            payment_timestamp: rec[2],
+            kicked_flag: rec[3],
           };
           txResult.push(tmp);
         });

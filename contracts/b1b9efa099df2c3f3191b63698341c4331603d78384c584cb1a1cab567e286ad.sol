@@ -8,7 +8,7 @@
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
-  contract miniContract {
+  contract suite_contract {
   
       ///@notice When Contract be ended, ReadOnly
       bool isContractRun;
@@ -96,7 +96,6 @@
       */
       struct Deposit {
           string deposit_payer_id;
-          string warranty_pledge;
           uint deposit_amount;
           uint payment_timestamp;
           bool kicked_flag;
@@ -151,6 +150,7 @@
           _;
       }
       
+      // ATTACHED
       /**
       * @notice Study group's initial contract create request handler
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -165,7 +165,6 @@
           uint minimum_attendance,
           uint minimum_mission_completion
       ) isRun onlyOwner public returns(string memory) {
-      
           groupContract = GroupContract(
               leader_id, group_id, group_capacity, group_deposit_per_person, (block.timestamp + (group_period * 1 days)),(block.timestamp + (recruitment_period * 1 days)),minimum_attendance ,minimum_mission_completion, GroupStatus(0)
           );
@@ -245,6 +244,7 @@
           return(studyGroupDeposits);
       }
 
+      //ATTACHED
       /**
       * @notice Calling the study group's Contract details
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -285,7 +285,6 @@
       */
       function patchClientPaymentDeposit(
           string memory deposit_payer_id,
-          string memory warrenty_pledge,
           string memory group_id,
           uint deposit_amount
       ) isRun onlyOwner public returns(string memory) {
@@ -294,16 +293,13 @@
           require(!callCheckAllClientsPayment(), "All Uer Already Paid the deposit");
           studyGroupDeposits.push(Deposit(
               deposit_payer_id,
-              warrenty_pledge,
               deposit_amount,
               block.timestamp,
               false
           ));
 
           dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, "dreaming_app", deposit_amount, "dreaming_app", group_id, "deposit payment for enrollment"));
-          if (studyGroupDeposits.length == groupContract.group_capacity) {
-            return(response_post_success_msg);              
-          }
+          
           return(response_post_success_msg);
   
       }

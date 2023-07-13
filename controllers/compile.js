@@ -16,7 +16,7 @@ class Contract {
       _filename + ".sol"
     );
 
-    fs.writeFileSync(contractPath, templateContract(_filename), "utf8");
+    fs.writeFileSync(contractPath, templateContract(), "utf8");
 
     const data = JSON.stringify({
       language: "Solidity",
@@ -42,7 +42,7 @@ class Contract {
   static writeOutput(_compiled) {
     for (const contractFileName in _compiled.contracts) {
       const [contractName] = contractFileName.split(".");
-      const contract = _compiled.contracts[contractFileName][contractName];
+      const contract = _compiled.contracts[contractFileName]["suite_contract"];
 
       const abi = contract.abi;
       const bytecode = contract.evm.bytecode.object;

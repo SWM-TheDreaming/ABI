@@ -46,3 +46,5 @@ CREATE TABLE contract_log (
 INSERT INTO user_auth_info (id, user_id, user_pw, nick_name)
 	   	    VALUE(NULL, 'admin',  'admin', 'admin');
 
+ALTER TABLE `contracts` DROP `contract_title`;
+ALTER TABLE `contracts` DROP `group_id_salt`;

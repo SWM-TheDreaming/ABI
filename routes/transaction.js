@@ -8,7 +8,6 @@ import sqlCon from "../db/sqlCon.js";
 
 import Client from "../controllers/client.js";
 import { makeGroupHashedID } from "../lib/hashing.js";
-
 import { contractInit } from "../lib/funcs.js";
 
 dotenv.config({ path: "../.env" });
@@ -20,49 +19,62 @@ const client = new Client(process.env.BLOCK_CHAIN_HTTP_PROVIDER);
 const conn = sqlCon();
 const router = express.Router();
 
-const regExp = /[\{\}\[\]\/?.,;:|\)*~`!^\-_+<>@\#$%&\\\=\(\'\"]/g;
-
 /**
- * @Notice callCheckClientPaymentComplition Send Router
+ * @Notice setStudyGroupContracts Send Router
  *
  * @Param groupId : Long group_id
  * @Param title : String title / Not included !,@,#, ...
  *
- * @Body deposit_payer_id : String deposit_payer_id
+ * @body
+ *  leaderId : String leaderId / admin
+ *  capacity : Int capacity / 4
+ *  groupDepositPerPerson : Int groupDepositPerPerson / 10000
+ *  groupPeriod : Int groupPeriod / 30 (days)
  */
-router.post("/client-payment/:groupId/:title", async (req, res, next) => {
+router.post("/:groupId/:title", async (req, res, next) => {
   try {
-    const body = req.body;
     const params = req.params;
+    const body = req.body;
     const txHash = {};
 
-    if (regExp.test(params.title)) {
-      return res.status(401).json({
-        message: "그룹 텍스트에 특수문자가 있는 경우는 없습니다.",
-      });
-    }
     const hashedGroupInfo = await makeGroupHashedID(
       params.groupId,
-      params.title
+      params.title.replace(" ", "")
     );
+
+    const txParams = {
+      leaderId: body.leaderId,
+      groupId: hashedGroupInfo.crypt,
+      capacity: body.capacity,
+      groupDepositPerPerson: body.groupDepositPerPerson,
+      groupPeriod: body.groupPeriod,
+      recruitmentPeriod: body.recruitmentPeriod,
+      minimumAttendance: body.minimumAttendance,
+      minimumMissionCompletion: body.minimumMissionCompletion,
+    };
 
     const deployedContract = await contractInit(hashedGroupInfo, client);
 
     const gasPrice = await client.web3.eth.getGasPrice();
     const block = await client.web3.eth.getBlock("latest");
 
-    const txParams = {
-      deposit_payer_id: body.deposit_payer_id,
-    };
-
     try {
       const receipt = await deployedContract.methods
-        .callCheckClientPaymentComplition(txParams.deposit_payer_id)
+        .setStudyGroupContract(
+          txParams.leaderId,
+          txParams.groupId,
+          txParams.capacity,
+          txParams.groupDepositPerPerson,
+          txParams.groupPeriod,
+          txParams.recruitmentPeriod,
+          txParams.minimumAttendance,
+          txParams.minimumMissionCompletion
+        )
         .send({
           from: process.env.SEND_ACCOUNT,
           gasLimit: block.gasLimit,
           gasPrice: client.web3.utils.toHex(
-            client.web3.utils.toWei(gasPrice, "mwei")
+            client.web3.utils.toWei(gasPrice, "mwei") * 10
           ),
         })
         .once("transactionHash", async (hash) => {
@@ -89,9 +101,6 @@ router.post("/client-payment/:groupId/:title", async (req, res, next) => {
       console.log(err);
       return res.status(401).json({
         message: {
-          message:
-            "block explore site에서 transactionHash 값을 복사해 TX 결과를 확인하세요.",
-          "block explore site": "https://sepolia.etherscan.io/",
           transactionHash: txHash.hash,
           error_reason: err.reason,
         },
