@@ -58,7 +58,6 @@ router.post("/client-payment/:groupId/:title", async (req, res, next) => {
       const receipt = await deployedContract.methods
         .patchClientPaymentDeposit(
           txParams.deposit_payer_id,
-          txParams.group_id,
           txParams.deposit_amount
         )
         .send({
@@ -80,7 +79,7 @@ router.post("/client-payment/:groupId/:title", async (req, res, next) => {
           console.info("transactionHash", hash);
         });
       return res.status(201).json({
-        message: "컨트랙트 작성에 성공했습니다.",
+        message: "컨트랙트 보증금 기입 트렌젝션 발생이 성공했습니다.",
         result: {
           blockHash: receipt.blockHash,
           status: receipt.status,
@@ -140,10 +139,7 @@ router.post("/evaluation/:groupId/:title", async (req, res, next) => {
 
     try {
       const receipt = await deployedContract.methods
-        .patchEvaluationParticipant(
-          txParams.deposit_payer_id,
-          txParams.group_id
-        )
+        .patchEvaluationParticipant(txParams.deposit_payer_id)
         .send({
           from: process.env.SEND_ACCOUNT,
           gasLimit: block.gasLimit,

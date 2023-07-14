@@ -5,7 +5,7 @@ const templateContract = () => {
   
   
   /**
-  * @title The dreaming despoit smart contract
+  * @title The suite despoit smart contract
   * @author lopahn2 / hwany9181@gmail.com
   * @notice Agent for deposit distributor
   */
@@ -23,10 +23,10 @@ const templateContract = () => {
       string response_post_success_msg = "201_OK";
       string response_fail_msg = "400_FAIL";
   
-      ///@notice Dreaming deposit object for control
-      DreamingDeposit dreamingDeposit;
+      ///@notice Suite deposit object for control
+      SuiteDeposit suiteDeposit;
   
-      ///@notice Dreaming company wallet address identifier
+      ///@notice Suite company wallet address identifier
       address _owner;
   
       constructor() {
@@ -47,40 +47,18 @@ const templateContract = () => {
           end
       }
   
-      /**
-       * @notice Set all contract behavior log recorded in this struct object
-       * 
-       * @string:who -> dreaming / userId
-       * @uint:timestamp -> when transaction occurred
-       * @string:where -> group_id
-       * @uint:amount -> how mouch amount of money is transacted
-       * @string:from -> from
-       * @string:to -> to
-       * @string:why -> transaction reason 
-       */
-      struct DreamingLog {
-        string who;
-        uint timestamp;
-        string where;
-        uint amount;
-        string from;
-        string to;
-        string why;
-      }
-
-      DreamingLog[] dreamingLogs;
   
       /**
-      * @notice The Dreaming Finance Info 
+      * @notice The Suite Finance Info 
       * @key:deposit_balance -> unit (원)
-      * @key:dreamingFinance -> finance flow log when profit occured
+      * @key:suiteFinance -> finance flow log when profit occured
       */
-      struct DreamingDeposit {
+      struct SuiteDeposit {
           uint deposit_balance;
-          DreamingFinance[] dreamingFinance;
+          SuiteFinance[] suiteFinance;
       }
       
-      struct DreamingFinance {
+      struct SuiteFinance {
           string group_id;
           string payer_id;
           string payed_reason;
@@ -139,7 +117,7 @@ const templateContract = () => {
       Deposit[] finalStudyGroupDeposits;
 
 
-      ///@notice Check function caller is admin of the dreaming
+      ///@notice Check function caller is admin of the suite
       modifier onlyOwner() {
           require(msg.sender == _owner, "The caller is not owner.");
           _;
@@ -151,7 +129,7 @@ const templateContract = () => {
           _;
       }
       
-      // ATTACHED
+      
       /**
       * @notice Study group's initial contract create request handler
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -174,7 +152,7 @@ const templateContract = () => {
           
       }
   
-  
+      
       /**
       * @notice Check if the points the client wants to pay are equal to the preset deposit
       * @param client_payment : Points paid by the client
@@ -191,6 +169,7 @@ const templateContract = () => {
           }
       }
 
+      
       /**
       * @notice Check the client already paid the deposit
       * @param user_id : Points paid by the client
@@ -208,6 +187,7 @@ const templateContract = () => {
           return (true);
       }
 
+
       /**
       * @notice Check All clients are paid the deposit
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -219,24 +199,7 @@ const templateContract = () => {
           return false;
       }
   
-    //   /**
-    //   * @notice Check whether the user has paid
-    //   * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
-    //   */
-    //   function callCheckClientPaymentComplition(
-    //       string memory deposit_payer_id
-    //   ) isRun public view returns(string memory) {
-    //       require(studyGroupDeposits.length != 0, "No one pay the deposit");
-    //       for (uint i; i < studyGroupDeposits.length; i++) {
-    //           if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) == keccak256(bytes(deposit_payer_id))) {
-    //               if (studyGroupDeposits[i].deposit_amount == groupContract.group_deposit_per_person) {
-    //                   return(response_success_msg);
-    //               }
-    //           }
-    //       }
-    //       return(response_fail_msg);
-    //   }
-  
+
       /**
       * @notice Calling the study group's deposit accounting details
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -245,7 +208,7 @@ const templateContract = () => {
           return(studyGroupDeposits);
       }
 
-      //ATTACHED
+
       /**
       * @notice Calling the study group's Contract details
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -254,24 +217,17 @@ const templateContract = () => {
           return(groupContract);
       }
     
-  
-      /**
-      * @notice Calling the Dreaming's deposit accounting details
-      * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
-      */
-      function callDreamingDepositDetail() onlyOwner public view returns(DreamingDeposit memory) {
-          return dreamingDeposit;
-      }
 
       /**
-      * @notice Calling the dreaming log array
+      * @notice Calling the Suite's deposit accounting details
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function callDreamingLog() onlyOwner public view returns(DreamingLog[] memory) {
-          return dreamingLogs;
+      function callSuiteDepositDetail() onlyOwner public view returns(SuiteDeposit memory) {
+          return suiteDeposit;
       }
+
      
-      //ATTACHED
+
       /**
       * @notice Calling the final study group deposits array
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -280,7 +236,7 @@ const templateContract = () => {
           return finalStudyGroupDeposits;
       }
   
-      //ATTACHED
+ 
       /**
       * @notice Request to add the deposit amount to the deposit according to the contract 
       * @return bool : flag of all group member pay the deposit
@@ -288,7 +244,6 @@ const templateContract = () => {
       */
       function patchClientPaymentDeposit(
           string memory deposit_payer_id,
-          string memory group_id,
           uint deposit_amount
       ) isRun onlyOwner public returns(string memory) {
           require(callCheckGroupDeposit(deposit_amount), "deposit amount is not same in the contarct");
@@ -301,27 +256,24 @@ const templateContract = () => {
               false
           ));
 
-          dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, "dreaming_app", deposit_amount, "dreaming_app", group_id, "deposit payment for enrollment"));
           
           return(response_post_success_msg);
   
       }
-  
+
       /**
-      * @notice Split the deposit of the kicked user equally among the rest and Dreaming
+      * @notice Split the deposit of the kicked user equally among the rest and Suite
       *         
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
-      function patchDistributeKickedClientDeposit(
-          string memory deposit_payer_id,
-          string memory group_id
+      function patchEvaluationParticipant(
+          string memory deposit_payer_id
       ) isRun onlyOwner public returns(string memory) {
           require(distributableDeositUserSize > 1, "All People were kicked");
           uint returnableDepositAmount = 0;
           for (uint i = 0; i < studyGroupDeposits.length; i++) {
               if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) == keccak256(bytes(deposit_payer_id))) {
                   require(studyGroupDeposits[i].deposit_amount != 0, "deposit payer balance is already 0");
-                  dreamingLogs.push(DreamingLog(deposit_payer_id, block.timestamp, group_id, studyGroupDeposits[i].deposit_amount, group_id, "contract memory", "The deposit was taken because the user was kicked out."));
                   returnableDepositAmount += studyGroupDeposits[i].deposit_amount;
                   studyGroupDeposits[i].deposit_amount = 0;
                   studyGroupDeposits[i].kicked_flag = true;
@@ -330,15 +282,13 @@ const templateContract = () => {
               }
           }
   
-          /// @dev split equally among the rest and Dreaming. Because Solidity can not handle float type
+          /// @dev split equally among the rest and Suite. Because Solidity can not handle float type
           returnableDepositAmount /= distributableDeositUserSize;
-          dreamingDeposit.deposit_balance += returnableDepositAmount;
-          dreamingLogs.push(DreamingLog("dreaming", block.timestamp, "contract memory", returnableDepositAmount, "contract memory", "dreaming finance", "The deposit is distributed because user was kicked."));
-          dreamingDeposit.dreamingFinance.push(DreamingFinance(groupContract.group_id, deposit_payer_id, "Kick of player", returnableDepositAmount, block.timestamp));
+          suiteDeposit.deposit_balance += returnableDepositAmount;
+          suiteDeposit.suiteFinance.push(SuiteFinance(groupContract.group_id, deposit_payer_id, "Kick of player", returnableDepositAmount, block.timestamp));
   
           for (uint i = 0; i < studyGroupDeposits.length; i++) {
               if(keccak256(bytes(studyGroupDeposits[i].deposit_payer_id)) != keccak256(bytes(deposit_payer_id))) {
-                  dreamingLogs.push(DreamingLog(studyGroupDeposits[i].deposit_payer_id, block.timestamp, "contract memory", returnableDepositAmount, "contract memory", group_id, "The deposit is distributed because user was kicked."));
                   studyGroupDeposits[i].deposit_amount += returnableDepositAmount;
               }
           }
@@ -346,7 +296,8 @@ const templateContract = () => {
           return(response_post_success_msg);
   
       }
-  
+
+
       /**
       * @notice Status change request after checking group termination conditions
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -365,6 +316,7 @@ const templateContract = () => {
           );
       }
 
+  
       /**
       * @notice Status change request after start condition
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
@@ -379,9 +331,9 @@ const templateContract = () => {
           );
       }
       
-      //ATTACHED
+
       /**
-      * @notice Return Dreaming Revenue when Study is end and is not stop.
+      * @notice Return Suite Revenue when Study is end and is not stop.
       *         Also Balance is not zero.
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.
       */
@@ -391,13 +343,12 @@ const templateContract = () => {
           for (uint i = 0; i < _length; i++) {
               finalStudyGroupDeposits.push(studyGroupDeposits[i]);
               studyGroupDeposits[i].deposit_amount = 0;
-              dreamingLogs.push(DreamingLog("dreaming", block.timestamp, studyGroupDeposits[i].deposit_payer_id, studyGroupDeposits[i].deposit_amount, studyGroupDeposits[i].deposit_payer_id, finalStudyGroupDeposits[i].deposit_payer_id, "Fixed final study group users balance"));
           }
           return response_success_msg;
       }
     
     
-      //ATTACHED
+
       /**
       * @notice Study group stop request (when group_status is pending or end)
       * @custom:error-handling : Node ABI server is Oracle for onchain data. Error handling is done in ABI Server.

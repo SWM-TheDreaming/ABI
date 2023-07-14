@@ -62,7 +62,7 @@ router.get("/start/:groupId/:title", async (req, res, next) => {
         });
 
       return res.status(201).json({
-        message: "컨트랙트 작성에 성공했습니다.",
+        message: "스마트 컨트랙트상에서 스터디가 성공적으로 시작됐습니다.",
 
         result: {
           blockHash: receipt.blockHash,
@@ -132,7 +132,7 @@ router.get("/end/:groupId/:title", async (req, res, next) => {
         });
 
       return res.status(201).json({
-        message: "컨트랙트 작성에 성공했습니다.",
+        message: "스마트 컨트랙트상 스터디가 정상적으로 종료됐습니다.",
 
         result: {
           blockHash: receipt.blockHash,
@@ -202,7 +202,7 @@ router.get("/settle-contract/:groupId/:title", async (req, res, next) => {
         });
 
       return res.status(201).json({
-        message: "컨트랙트 작성에 성공했습니다.",
+        message: "보증금 정산을 완료했습니다.",
         result: {
           blockHash: receipt.blockHash,
           status: receipt.status,
@@ -256,7 +256,7 @@ router.get("/stop/:groupId/:title", async (req, res, next) => {
           from: process.env.SEND_ACCOUNT,
           gasLimit: block.gasLimit,
           gasPrice: client.web3.utils.toHex(
-            client.web3.utils.toWei(gasPrice, "mwei") * 100
+            client.web3.utils.toWei(gasPrice, "mwei") * 10
           ),
         })
         .once("transactionHash", async (hash) => {
@@ -273,7 +273,8 @@ router.get("/stop/:groupId/:title", async (req, res, next) => {
 
       console.info(receipt);
       return res.status(201).json({
-        message: "컨트랙트 쓰기에 성공했습니다.",
+        message:
+          "컨트랙트 접근 차단 요청이 성공했습니다. 이제 컨트랙트 트렌젝션 요청은 Reject 됩니다. (ReadOnly)",
         result: {
           blockHash: receipt.blockHash,
           status: receipt.status,

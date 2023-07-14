@@ -90,11 +90,11 @@ router.post("/:groupId/:title", async (req, res, next) => {
         });
 
       return res.status(201).json({
-        message: "컨트랙트 쓰기에 성공했습니다.",
+        message: "컨트랙트 트렌젝션 발생을 성공시켰습니다.",
         result: {
           blockHash: receipt.blockHash,
-          status: receipt.status,
           transactionHash: receipt.transactionHash,
+          status: receipt.status,
         },
       });
     } catch (err) {
