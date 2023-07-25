@@ -160,7 +160,7 @@ router.post("/evaluation/:groupId/:title", async (req, res, next) => {
         });
 
       return res.status(201).json({
-        message: "컨트랙트 쓰기에 성공했습니다.",
+        message: "보증금액 평가를 완료했습니다.",
         result: {
           blockHash: receipt.blockHash,
           status: receipt.status,

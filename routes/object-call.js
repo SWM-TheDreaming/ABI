@@ -198,7 +198,7 @@ router.get("/suite-deposit-detail/:groupId/:title", async (req, res, next) => {
       txResult.push(tmp);
     });
     return res.status(201).json({
-      message: "컨트랙트 읽기에 성공했습니다.",
+      message: "서비스가 가져갈 수 있는 최종 이윤에 대한 보증금액 장부를 반환합니다.",
       txResult,
       depositBalance: receipt.deposit_balance,
     });
