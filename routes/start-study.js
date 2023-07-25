@@ -37,7 +37,6 @@ router.post("/", async function (req, res, next) {
 
   const finish = () => {
     while (true) {
-      console.log("resQue =" + responseQueue.length);
       if (responseQueue.length == tasks.length) {
         break;
       }
