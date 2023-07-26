@@ -61,7 +61,7 @@ router.post("/", async function (req, res, next) {
           nonce: client.web3.utils.toHex(txCount),
           gasLimit: block.gasLimit,
           gasPrice: client.web3.utils.toHex(
-            client.web3.utils.toWei(gasPrice, "mwei") * 10
+            client.web3.utils.toWei(gasPrice, "wei") * 1000
           ),
           data: deploy,
         };
