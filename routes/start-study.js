@@ -36,11 +36,7 @@ router.post("/", async function (req, res, next) {
   ];
 
   const finish = () => {
-    while (true) {
-      if (responseQueue.length == tasks.length) {
-        break;
-      }
-    }
+    while (!responseQueue.length != tasks.length) {}
     return res.status(201).json({
       message:
         "카프카큐 달리면 성공 메시지랑 실패 메시지 나눠서 큐 분배해줘야 하는데 지금은 안할래",
@@ -48,7 +44,7 @@ router.post("/", async function (req, res, next) {
     });
   };
 
-  const iterator = async (idx) => {
+  const batcher = async (idx) => {
     if (idx == tasks.length) {
       return finish();
     }
@@ -56,14 +52,14 @@ router.post("/", async function (req, res, next) {
     const cb = (result) => {
       console.log(result);
       responseQueue.push(result);
-      iterator(idx + 1);
+      batcher(idx + 1);
     };
     const taskResult = await task(req, res, next, cb);
     console.log(taskResult);
   };
 
   try {
-    iterator(0);
+    batcher(0);
   } catch (err) {
     console.log(err);
     return res.status(401).json({
